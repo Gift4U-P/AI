@@ -39,5 +39,5 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd ~/gift4u
-          docker-compose pull fastapi
-          docker-compose up -d fastapi
+          docker compose pull fastapi
+          docker compose up -d fastapi
