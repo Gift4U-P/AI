@@ -3,14 +3,14 @@ name: Build & Deploy FastAPI to EC2
 on:
   push:
     branches:
-      - main   # main push 시 배포
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout FastAPI source
+    - name: Checkout source
       uses: actions/checkout@v3
 
     # 1. Docker Hub 로그인
@@ -22,11 +22,11 @@ jobs:
 
     # 2. FastAPI 이미지 빌드
     - name: Build FastAPI Docker image
-      working-directory: ./FastAPI
       run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/gift4u-fastapi:latest .
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/gift4u-fastapi:latest \
+          -f FastAPI/Dockerfile FastAPI
 
-    # 3. push to Docker Hub
+    # 3. Push to Docker Hub
     - name: Push FastAPI Docker image
       run: |
         docker push ${{ secrets.DOCKER_USERNAME }}/gift4u-fastapi:latest
