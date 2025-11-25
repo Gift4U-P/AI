@@ -22,6 +22,7 @@ jobs:
 
     # 2. FastAPI 이미지 빌드
     - name: Build FastAPI Docker image
+      working-directory: ./FastAPI
       run: |
         docker build -t ${{ secrets.DOCKER_USERNAME }}/gift4u-fastapi:latest .
 
