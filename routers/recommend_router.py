@@ -4,7 +4,7 @@ router = APIRouter(prefix="/recommend")
 
 @router.get("/")
 def root():
-    return {"message": "FastAPI is running "}
+    return {"message": "FastAPI is running"}
 
 
 @router.post("/present")
