@@ -20,11 +20,10 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # 2. FastAPI 이미지 빌드
+    # 2. FastAPI 이미지 빌드 (루트에서)
     - name: Build FastAPI Docker image
       run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/gift4u-fastapi:latest \
-          -f FastAPI/Dockerfile FastAPI
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/gift4u-fastapi:latest .
 
     # 3. Push to Docker Hub
     - name: Push FastAPI Docker image
