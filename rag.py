@@ -20,7 +20,7 @@ def initialize_rag():
     file_path = next((f for f in possible_files if os.path.exists(f)), None)
     
     if not file_path:
-        print("❌ 데이터를 찾을 수 없습니다.")
+        print("데이터를 찾을 수 없습니다.")
         return
 
     try:
@@ -30,7 +30,7 @@ def initialize_rag():
             df = pd.read_excel(file_path, engine='openpyxl')
         df = df.fillna('')
     except Exception as e:
-        print(f"❌ 데이터 로드 실패: {e}")
+        print(f"데이터 로드 실패: {e}")
         return
 
     documents = []
@@ -58,9 +58,9 @@ def initialize_rag():
         )
         vectorstore = FAISS.from_documents(documents, embeddings)
         retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
-        print("✅ 벡터 DB 구축 완료!")
+        print("벡터 DB 구축 완료!")
     except Exception as e:
-        print(f"❌ 임베딩 생성 실패: {e}")
+        print(f"임베딩 생성 실패: {e}")
         return
     
     print("☁️ LLM 연결 중...")
@@ -70,9 +70,9 @@ def initialize_rag():
             temperature=0.7,
             openai_api_key=openai_key
         )
-        print("✅ LLM 연결 성공!")
+        print("LLM 연결 성공!")
     except Exception as e:
-        print(f"❌ OpenAI 연결 실패: {e}")
+        print(f"OpenAI 연결 실패: {e}")
         llm = None
 
     print("✅ RAG 시스템 초기화 완료")
@@ -150,7 +150,7 @@ def get_survey_recommendation(user_query: str):
         analysis, reasoning, message = parse_llm_response(response_text)
         
     except Exception as e:
-        print(f"❌ OpenAI Error: {e}")
+        print(f"OpenAI Error: {e}")
         analysis, reasoning, message = "분석 오류", "추천 오류", "메시지 생성 오류"
 
     gift_list = []
@@ -207,7 +207,7 @@ def get_keyword_recommendation(keyword_dict: dict):
         card_message = chain.invoke({"user_query": user_query, "product_context": product_context})
         card_message = card_message.strip().replace('"', '') # 따옴표 제거 등 정제
     except Exception as e:
-        print(f"❌ OpenAI Error: {e}")
+        print(f"OpenAI Error: {e}")
         card_message = "행복한 하루 되세요!"
 
     # 5. 선물 리스트 매핑

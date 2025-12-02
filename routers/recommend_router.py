@@ -67,66 +67,68 @@ class KeywordResponseWrapper(BaseModel):
 # --- Endpoints ---
 
 # [API 1] 설문조사 결과 추천
-# URL: POST /recommend/survey/result
-@router.post("/survey/result", response_model=SurveyResponseWrapper)
+# URL: POST /survey/result
+@router.post("/survey/result")
 def recommend_by_survey(request: SurveyRequest):
     try:
+        # 1. 설문 데이터를 문장으로 변환
         query_sentence = rag.convert_survey_to_query(request.dict())
         
-        # 설문 전용 함수 호출
+        # 2. RAG 실행
         result_data = rag.get_survey_recommendation(query_sentence)
         
+        # 3. 결과 반환
         if not result_data:
-             return SurveyResponseWrapper(
-                 isSuccess=False, 
-                 code="SERVER5001", 
-                 message="추천 결과를 생성하지 못했습니다.", 
-                 result=None
-             )
+            return {
+                "analysis": None,
+                "reasoning": None,
+                "card_message": None,
+                "giftList": []
+            }
 
-        return SurveyResponseWrapper(
-            isSuccess=True, 
-            code="COMMON200", 
-            message="성공입니다.", 
-            result=SurveyResult(**result_data)
-        )
+        # result_data = 분석 + giftList가 이미 포함된 딕셔너리
+        return result_data
 
     except Exception as e:
-        return SurveyResponseWrapper(
-            isSuccess=False, 
-            code="SERVER5000", 
-            message=f"서버 에러: {str(e)}", 
-            result=None
-        )
-
+        return {
+            "analysis": None,
+            "reasoning": None,
+            "card_message": None,
+            "giftList": [],
+            "error": str(e)
+        }
 
 # [API 2] 키워드 결과 추천
 # URL: POST /recommend/keywords/result
-@router.post("/keywords/result", response_model=KeywordResponseWrapper)
+@router.post("/keywords/result")
 def recommend_by_keywords(request: KeywordRequest):
     try:
         # 키워드 전용 함수 호출 (딕셔너리 통째로 전달)
         result_data = rag.get_keyword_recommendation(request.dict())
         
+        # 추천 실패 시 빈 값 반환
         if not result_data:
-             return KeywordResponseWrapper(
-                 isSuccess=False, 
-                 code="SERVER5001", 
-                 message="추천 결과를 생성하지 못했습니다.", 
-                 result=None
-             )
+            return {
+                "age": None,
+                "gender": None,
+                "relationship": None,
+                "situation": None,
+                "keywordText": None,
+                "card_message": None,
+                "giftList": []
+            }
 
-        return KeywordResponseWrapper(
-            isSuccess=True, 
-            code="COMMON200", 
-            message="성공입니다.", 
-            result=KeywordResult(**result_data)
-        )
+        # result_data는 dict 형태이며, 그대로 반환하면 Spring에서 매핑 가능
+        return result_data
 
     except Exception as e:
-        return KeywordResponseWrapper(
-            isSuccess=False, 
-            code="SERVER5000", 
-            message=f"서버 에러: {str(e)}", 
-            result=None
-        )
+        return {
+            "age": None,
+            "gender": None,
+            "relationship": None,
+            "situation": None,
+            "keywordText": None,
+            "card_message": None,
+            "giftList": [],
+            "error": str(e)
+        }
