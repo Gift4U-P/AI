@@ -5,9 +5,8 @@ import rag
 
 router = APIRouter()
 
-# --- Request Models (입력 데이터 모델) ---
+# --- Request Models ---
 
-# 1. 설문조사 요청 (Survey)
 class SurveyRequest(BaseModel):
     q1: str
     q2: str
@@ -20,15 +19,13 @@ class SurveyRequest(BaseModel):
     q9: str
     q10: str
 
-# 2. 키워드 요청 (Keywords)
 class KeywordRequest(BaseModel):
     age: str
     gender: str
     relationship: str
     situation: str
 
-
-# --- Response Models (출력 데이터 모델 - 공통) ---
+# --- Response Models (공통: 선물 아이템) ---
 
 class GiftItem(BaseModel):
     title: str
@@ -37,49 +34,65 @@ class GiftItem(BaseModel):
     lprice: str
     mallName: str
 
-class PresentResult(BaseModel):
+# --- [설문용] Response Models ---
+class SurveyResult(BaseModel):
     analysis: str
     reasoning: str
     card_message: str
     giftList: List[GiftItem]
 
-class ResponseWrapper(BaseModel):
+class SurveyResponseWrapper(BaseModel):
     isSuccess: bool
     code: str
     message: str
-    result: Optional[PresentResult] = None
+    result: Optional[SurveyResult] = None
 
-# --- Endpoints (API 주소 정의) ---
+# --- [키워드용] Response Models (명세서 반영) ---
+class KeywordResult(BaseModel):
+    age: str
+    gender: str
+    relationship: str
+    situation: str
+    keywordText: str
+    card_message: str
+    giftList: List[GiftItem]
+
+class KeywordResponseWrapper(BaseModel):
+    isSuccess: bool
+    code: str
+    message: str
+    result: Optional[KeywordResult] = None
+
+
+# --- Endpoints ---
 
 # [API 1] 설문조사 결과 추천
-# URL: POST /survey/result
-@router.post("/survey/result", response_model=ResponseWrapper)
+# URL: POST /recommend/survey/result
+@router.post("/survey/result", response_model=SurveyResponseWrapper)
 def recommend_by_survey(request: SurveyRequest):
     try:
-        # 1. 설문 데이터를 문장으로 변환
         query_sentence = rag.convert_survey_to_query(request.dict())
         
-        # 2. RAG 실행
-        result_data = rag.get_gift_recommendation(query_sentence)
+        # 설문 전용 함수 호출
+        result_data = rag.get_survey_recommendation(query_sentence)
         
-        # 3. 결과 반환
         if not result_data:
-             return ResponseWrapper(
+             return SurveyResponseWrapper(
                  isSuccess=False, 
                  code="SERVER5001", 
                  message="추천 결과를 생성하지 못했습니다.", 
                  result=None
              )
 
-        return ResponseWrapper(
+        return SurveyResponseWrapper(
             isSuccess=True, 
             code="COMMON200", 
             message="성공입니다.", 
-            result=PresentResult(**result_data)
+            result=SurveyResult(**result_data)
         )
 
     except Exception as e:
-        return ResponseWrapper(
+        return SurveyResponseWrapper(
             isSuccess=False, 
             code="SERVER5000", 
             message=f"서버 에러: {str(e)}", 
@@ -88,37 +101,32 @@ def recommend_by_survey(request: SurveyRequest):
 
 
 # [API 2] 키워드 결과 추천
-# URL: POST /keywords/result
-@router.post("/keywords/result", response_model=ResponseWrapper)
+# URL: POST /recommend/keywords/result
+@router.post("/keywords/result", response_model=KeywordResponseWrapper)
 def recommend_by_keywords(request: KeywordRequest):
     try:
-        # 1. 키워드 데이터를 문장으로 변환
-        query_sentence = rag.convert_keywords_to_query(request.dict())
+        # 키워드 전용 함수 호출 (딕셔너리 통째로 전달)
+        result_data = rag.get_keyword_recommendation(request.dict())
         
-        # 2. RAG 실행
-        result_data = rag.get_gift_recommendation(query_sentence)
-        
-        # 3. 결과 반환
         if not result_data:
-             return ResponseWrapper(
+             return KeywordResponseWrapper(
                  isSuccess=False, 
                  code="SERVER5001", 
                  message="추천 결과를 생성하지 못했습니다.", 
                  result=None
              )
 
-        return ResponseWrapper(
+        return KeywordResponseWrapper(
             isSuccess=True, 
             code="COMMON200", 
             message="성공입니다.", 
-            result=PresentResult(**result_data)
+            result=KeywordResult(**result_data)
         )
 
     except Exception as e:
-        return ResponseWrapper(
+        return KeywordResponseWrapper(
             isSuccess=False, 
             code="SERVER5000", 
             message=f"서버 에러: {str(e)}", 
             result=None
         )
-

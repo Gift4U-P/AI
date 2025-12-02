@@ -2,7 +2,6 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
-# [변경] 임베딩과 LLM 모두 OpenAI API 사용 (서버 부하 0)
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
@@ -17,8 +16,7 @@ llm = None
 def initialize_rag():
     global vectorstore, retriever, llm
     
-    # 1. 엑셀 데이터 로드
-    possible_files = ['dataset_modified.xlsx']
+    possible_files = ['present_dataset.xlsx - naver_gift_recommendation_datas.csv', 'present_dataset.csv', 'present_dataset.xlsx']
     file_path = next((f for f in possible_files if os.path.exists(f)), None)
     
     if not file_path:
@@ -47,16 +45,13 @@ def initialize_rag():
         }
         documents.append(Document(page_content=text_content, metadata=metadata))
 
-    # [수정된 부분] 2. 임베딩 및 벡터 DB (OpenAI API 사용)
-    # 로컬 모델 다운로드 없이, API 호출만으로 벡터를 만듭니다. (배포 최적화)
     openai_key = os.getenv("OPENAI_API_KEY")
     if not openai_key:
-        print("⚠️ OPENAI_API_KEY가 없습니다. (.env 확인 필요)")
+        print("⚠️ OPENAI_API_KEY가 없습니다.")
         return
 
     print("📥 임베딩 생성 중... (OpenAI text-embedding-3-small)")
     try:
-        # 최신 가성비 모델 사용 (성능은 좋고 가격은 매우 저렴)
         embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small",
             openai_api_key=openai_key
@@ -68,7 +63,6 @@ def initialize_rag():
         print(f"❌ 임베딩 생성 실패: {e}")
         return
     
-    # 3. LLM 설정 (OpenAI GPT-4o-mini)
     print("☁️ LLM 연결 중...")
     try:
         llm = ChatOpenAI(
@@ -81,9 +75,9 @@ def initialize_rag():
         print(f"❌ OpenAI 연결 실패: {e}")
         llm = None
 
-    print("✅ RAG 시스템 초기화 완료 (Deployment Ready)")
+    print("✅ RAG 시스템 초기화 완료")
 
-# --- [Helper Functions] ---
+# --- Helper Functions ---
 def convert_keywords_to_query(kw: dict) -> str:
     return f"선물 받는 사람은 {kw.get('age', '')}세 {kw.get('gender', '')}이며, 관계는 '{kw.get('relationship', '')}'입니다. 현재 '{kw.get('situation', '')}' 상황에 맞는 선물을 찾고 있습니다."
 
@@ -122,16 +116,14 @@ def convert_survey_to_query(ans: dict) -> str:
 
     return f"이 사람은 {', '.join(traits)}. 이 사람에게 가장 잘 어울리는 선물을 추천해줘."
 
-# --- 메인 추천 함수 ---
-def get_gift_recommendation(user_query: str):
+# --- [Function 1] 설문조사 추천 함수 (기존 로직) ---
+def get_survey_recommendation(user_query: str):
     if not retriever or not llm:
         return None
 
-    # 1. 유사도 검색 (임베딩 후 유사도 비교)
     searched_docs = retriever.invoke(user_query)
     product_context = "\n".join([f"- {d.page_content}" for d in searched_docs])
     
-    # 2. LLM 분석 및 메시지 생성
     template = """
     당신은 선물 추천 전문가 'Gift4U'입니다.
     
@@ -159,9 +151,7 @@ def get_gift_recommendation(user_query: str):
         
     except Exception as e:
         print(f"❌ OpenAI Error: {e}")
-        analysis = "분석 중 오류가 발생했습니다."
-        reasoning = "기본 추천 상품입니다."
-        message = "행복한 하루 되세요."
+        analysis, reasoning, message = "분석 오류", "추천 오류", "메시지 생성 오류"
 
     gift_list = []
     for doc in searched_docs:
@@ -177,6 +167,68 @@ def get_gift_recommendation(user_query: str):
         "analysis": analysis,
         "reasoning": reasoning,
         "card_message": message,
+        "giftList": gift_list
+    }
+
+# --- [Function 2] 키워드 추천 함수 (신규 로직) ---
+def get_keyword_recommendation(keyword_dict: dict):
+    if not retriever or not llm:
+        return None
+
+    # 1. 검색 쿼리 변환
+    user_query = convert_keywords_to_query(keyword_dict)
+    
+    # 2. 유사도 검색
+    searched_docs = retriever.invoke(user_query)
+    product_context = "\n".join([f"- {d.page_content}" for d in searched_docs])
+    
+    # 3. keywordText 생성 (규칙 기반)
+    # 예: "20대 연인 1주년 기념일에는 이런 선물을 추천해요"
+    age = keyword_dict.get('age', '')
+    relation = keyword_dict.get('relationship', '')
+    situation = keyword_dict.get('situation', '')
+    keyword_text = f"{age} {relation} {situation}에는 이런 선물을 추천해요"
+
+    # 4. LLM 메시지 생성 (오직 메시지만 생성)
+    template = """
+    당신은 선물 추천 전문가 'Gift4U'입니다.
+    
+    사용자 정보: "{user_query}"
+    추천된 상품들: {product_context}
+
+    위 정보를 바탕으로 선물과 함께 보낼 센스있고 감동적인 [카드 메시지] 하나만 작성해주세요.
+    다른 설명 없이 메시지 내용만 바로 출력하세요.
+    """
+    
+    prompt = PromptTemplate.from_template(template)
+    chain = prompt | llm | StrOutputParser()
+    
+    try:
+        card_message = chain.invoke({"user_query": user_query, "product_context": product_context})
+        card_message = card_message.strip().replace('"', '') # 따옴표 제거 등 정제
+    except Exception as e:
+        print(f"❌ OpenAI Error: {e}")
+        card_message = "행복한 하루 되세요!"
+
+    # 5. 선물 리스트 매핑
+    gift_list = []
+    for doc in searched_docs:
+        gift_list.append({
+            "title": doc.metadata.get("title", ""),
+            "link": doc.metadata.get("link", ""),
+            "image": doc.metadata.get("image", ""),
+            "lprice": doc.metadata.get("lprice", ""),
+            "mallName": doc.metadata.get("mallName", "")
+        })
+
+    # 6. 최종 결과 반환 (명세서 형식에 맞춤)
+    return {
+        "age": keyword_dict.get('age'),
+        "gender": keyword_dict.get('gender'),
+        "relationship": keyword_dict.get('relationship'),
+        "situation": keyword_dict.get('situation'),
+        "keywordText": keyword_text,
+        "card_message": card_message,
         "giftList": gift_list
     }
 
