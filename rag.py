@@ -47,10 +47,10 @@ def initialize_rag():
 
     openai_key = os.getenv("OPENAI_API_KEY")
     if not openai_key:
-        print("⚠️ OPENAI_API_KEY가 없습니다.")
+        print("OPENAI_API_KEY가 없습니다.")
         return
 
-    print("📥 임베딩 생성 중... (OpenAI text-embedding-3-small)")
+    print("임베딩 생성 중... (OpenAI text-embedding-3-small)")
     try:
         embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small",
@@ -63,7 +63,7 @@ def initialize_rag():
         print(f"임베딩 생성 실패: {e}")
         return
     
-    print("☁️ LLM 연결 중...")
+    print("LLM 연결 중...")
     try:
         llm = ChatOpenAI(
             model="gpt-4o-mini",
@@ -75,7 +75,7 @@ def initialize_rag():
         print(f"OpenAI 연결 실패: {e}")
         llm = None
 
-    print("✅ RAG 시스템 초기화 완료")
+    print("RAG 시스템 초기화 완료")
 
 # --- Helper Functions ---
 def convert_keywords_to_query(kw: dict) -> str:
