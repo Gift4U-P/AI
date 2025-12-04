@@ -21,8 +21,8 @@ class MainGiftResult(BaseModel):
 
 # --- Endpoint ---
 
-# URL: GET /users/present/list
-@router.get("/present/list", response_model=MainGiftResult, summary="메인 홈 랜덤 선물 리스트")
+# URL: GET /users/homePresent
+@router.get("/homePresent", response_model=MainGiftResult, summary="메인 홈 랜덤 선물 리스트")
 def get_main_page_gifts():
     """
     메인 화면에 보여줄 선물 리스트를 반환합니다.
