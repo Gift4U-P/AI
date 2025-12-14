@@ -78,7 +78,7 @@ def initialize_rag():
         return
 
     documents = []
-    documents = []
+
     for _, row in df.iterrows():
         title = str(row.get('title', ''))
         categories = [
