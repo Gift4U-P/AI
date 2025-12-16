@@ -457,39 +457,34 @@ def convert_survey_to_query(ans: dict):
     traits = []
     evidence_list = []
     user_trait_keywords = []
+    
+    trait_level_label = {"high": "높음", "medium": "보통", "low": "낮음"}
 
-    def process_trait(q1_key, q2_key, trait_key, category_name, descriptions):
+    def process_trait(q_keys, trait_key, category_labels, descriptions, summaries):
         valid_answers = []
-        val1 = str(ans.get(q1_key, '')).upper()
-        val2 = str(ans.get(q2_key, '')).upper()
-
-        if val1 != 'C' and val1 in ['A', 'B']:
-            valid_answers.append(val1)
-        if val2 != 'C' and val2 in ['A', 'B']:
-            valid_answers.append(val2)
+        for q_key in q_keys:
+            val = str(ans.get(q_key, "")).upper()
+            if val != "C" and val in ["A", "B"]:
+                valid_answers.append(val)
 
         if not valid_answers:
             return
 
-        a_count = valid_answers.count('A')
+        a_count = valid_answers.count("A")
         ratio = a_count / len(valid_answers)
 
-        description = ""
-        trait_summary = ""
-        level_label = ""
-
         if ratio == 1.0:
-            description = descriptions[0]
-            level_label = "높음"
-            trait_summary = descriptions[3] + " (높음)"
+            level = "high"
         elif ratio == 0.5:
-            description = descriptions[1]
-            level_label = "보통"
-            trait_summary = descriptions[3] + " (보통)"
+            level = "medium"
         else:
-            description = descriptions[2]
-            level_label = "낮음"
-            trait_summary = descriptions[3] + " (낮음)"
+            level = "low"
+
+        level_label = trait_level_label[level]
+        category_name = category_labels["positive"] if level != "low" else category_labels.get("negative", category_labels["positive"])
+        description = descriptions[level]
+        summary_text = summaries[level]
+        trait_summary = f"{summary_text} ({level_label})"
 
         evidence_list.append({
             "category": category_name,
@@ -501,40 +496,107 @@ def convert_survey_to_query(ans: dict):
         kw_list = TRAIT_KEYWORDS.get(trait_key, {}).get(level_label, [])
         user_trait_keywords.extend(kw_list)
 
-    process_trait('q1', 'q2', "외향성", "외향성 (Extraversion)", (
-        "Q1, Q2에서 새로운 사람들과의 교류를 즐기고 외부 활동을 선호한다고 응답하여, 경험 중심 활동형 선물이 잘 맞는 성향으로 나타났습니다.",
-        "Q1, Q2에서 상황에 따라 외부 활동을 즐기기도 하지만 혼자만의 시간도 중요시하는 균형 잡힌 성향으로 확인되었습니다.",
-        "Q1, Q2에서 조용한 환경과 실내 활동을 선호한다고 응답하여, 집에서 즐길 수 있는 편안한 선물이 적합합니다.",
-        "활동적이고 사교적인 성향"
-    ))
+    trait_configs = [
+        {
+            "q_keys": ("q1", "q2"),
+            "trait_key": "외향성",
+            "category_labels": {
+                "positive": "외향성 (Extraversion)",
+                "negative": "내향성 (Introversion)"
+            },
+            "descriptions": {
+                "high": "Q1, Q2에서 새로운 사람들과의 교류를 즐기고 외부 활동을 선호한다고 응답하여, 경험 중심 활동형 선물이 잘 맞는 성향으로 나타났습니다.",
+                "medium": "Q1, Q2에서 상황에 따라 외부 활동을 즐기기도 하지만 혼자만의 시간도 중요시하는 균형 잡힌 성향으로 확인되었습니다.",
+                "low": "Q1, Q2에서 조용한 환경과 실내 활동을 선호한다고 응답하여, 집에서 즐길 수 있는 편안한 선물이 적합합니다."
+            },
+            "summaries": {
+                "high": "활동적이고 사교적인 성향",
+                "medium": "활동적 성향과 내향적 성향이 조화로운 균형 잡힌 성향",
+                "low": "차분하고 내향적인 성향"
+            }
+        },
+        {
+            "q_keys": ("q3", "q4"),
+            "trait_key": "우호성",
+            "category_labels": {
+                "positive": "우호성 (Agreeableness)",
+                "negative": "적대성 (Antagonism)"
+            },
+            "descriptions": {
+                "high": "Q3, Q4 응답을 기반으로 타인의 감정을 세심하게 배려하고 관계를 중시하는 따뜻한 성향이 확인되었습니다.",
+                "medium": "Q3, Q4 응답을 기반으로 타인의 분위기나 감정을 적당히 고려하지만, 필요할 때는 의견을 명확히 표현하는 균형 잡힌 대인 관계 스타일을 보였습니다.",
+                "low": "Q3, Q4 응답에서 타인의 시선보다는 자신의 주관과 기준을 뚜렷하게 가지고 있는 독립적인 성향이 나타났습니다."
+            },
+            "summaries": {
+                "high": "타인을 배려하는 우호적인 성향",
+                "medium": "배려와 자기주장을 균형 있게 조절하는 성향",
+                "low": "직설적이고 독립적인 성향"
+            }
+        },
+        {
+            "q_keys": ("q5", "q6"),
+            "trait_key": "성실성",
+            "category_labels": {
+                "positive": "성실성 (Conscientiousness)",
+                "negative": "충동성 (Impulsiveness)"
+            },
+            "descriptions": {
+                "high": "Q5, Q6 응답에서 계획적이고 실용적인 것을 선호하며, 물건을 고를 때도 기능성을 최우선으로 고려하는 꼼꼼한 성향이 확인되었습니다.",
+                "medium": "Q5, Q6 응답에서 일정 관리와 실용성에 대해 과도하게 엄격하지도 느슨하지도 않은 보통 수준의 성향이 확인되었습니다.",
+                "low": "Q5, Q6 응답에서 계획보다는 즉흥적인 즐거움을 추구하고, 실용성보다는 디자인과 감성을 중요시하는 성향으로 나타났습니다."
+            },
+            "summaries": {
+                "high": "계획적이고 성실한 성향",
+                "medium": "실용성과 유연함을 모두 고려하는 성향",
+                "low": "즉흥적이고 충동적인 성향"
+            }
+        },
+        {
+            "q_keys": ("q7", "q8"),
+            "trait_key": "신경성",
+            "category_labels": {
+                "positive": "신경성 (Neuroticism)",
+                "negative": "정서적 안정성 (Emotional Stability)"
+            },
+            "descriptions": {
+                "high": "Q7, Q8에서 변화나 돌발 상황에 민감하고 감정 기복이 어느 정도 있다는 응답을 바탕으로, 안정·힐링 중심의 선물이 특히 도움이 될 가능성이 높습니다.",
+                "medium": "Q7, Q8 응답을 통해 일상적인 스트레스를 받기도 하지만, 적절히 대처하며 안정을 찾는 보통 수준의 정서 상태가 확인되었습니다.",
+                "low": "Q7, Q8 응답에서 스트레스 상황에서도 침착함을 유지하며 감정 기복이 적은 안정적인 성향이 확인되었습니다."
+            },
+            "summaries": {
+                "high": "정서적 안정이 필요한 성향",
+                "medium": "스트레스에 적당히 대응하는 균형 잡힌 정서 성향",
+                "low": "안정적이고 침착한 성향"
+            }
+        },
+        {
+            "q_keys": ("q9", "q10"),
+            "trait_key": "개방성",
+            "category_labels": {
+                "positive": "개방성 (Openness)",
+                "negative": "보수성 (Conventionality)"
+            },
+            "descriptions": {
+                "high": "Q9, Q10에서 새로운 취미, 창의적인 아이템, 감각적인 디자인을 선호한다는 선택이 확인되어, 개성 있는 취향 기반 선물을 선호하는 성향으로 판단됩니다.",
+                "medium": "Q9, Q10 응답에서 익숙한 것과 새로운 것 사이에서 적절한 균형을 유지하며, 너무 튀지 않으면서도 세련된 스타일을 선호합니다.",
+                "low": "Q9, Q10 응답에서 유행을 타지 않는 클래식하고 전통적인 스타일을 선호하며, 익숙한 것에서 편안함을 느끼는 성향입니다."
+            },
+            "summaries": {
+                "high": "새로운 경험과 개방적인 성향",
+                "medium": "새로움과 익숙함을 모두 즐기는 성향",
+                "low": "전통적이고 보수적인 성향"
+            }
+        }
+    ]
 
-    process_trait('q3', 'q4', "우호성", "우호성 (Agreeableness)", (
-        "Q3, Q4 응답을 기반으로 타인의 감정을 세심하게 배려하고 관계를 중시하는 따뜻한 성향이 확인되었습니다.",
-        "Q3, Q4 응답을 기반으로 타인의 분위기나 감정을 적당히 고려하지만, 필요할 때는 의견을 명확히 표현하는 균형 잡힌 대인 관계 스타일을 보였습니다.",
-        "Q3, Q4 응답에서 타인의 시선보다는 자신의 주관과 기준을 뚜렷하게 가지고 있는 독립적인 성향이 나타났습니다.",
-        "타인을 배려하는 우호적인 성향"
-    ))
-
-    process_trait('q5', 'q6', "성실성", "성실성 (Conscientiousness)", (
-        "Q5, Q6 응답에서 계획적이고 실용적인 것을 선호하며, 물건을 고를 때도 기능성을 최우선으로 고려하는 꼼꼼한 성향이 확인되었습니다.",
-        "Q5, Q6 응답에서 일정 관리와 실용성에 대해 과도하게 엄격하지도 느슨하지도 않은 보통 수준의 성향이 확인되었습니다.",
-        "Q5, Q6 응답에서 계획보다는 즉흥적인 즐거움을 추구하고, 실용성보다는 디자인과 감성을 중요시하는 성향으로 나타났습니다.",
-        "계획적이고 성실한 성향"
-    ))
-
-    process_trait('q7', 'q8', "신경성", "신경성 (Neuroticism)", (
-        "Q7, Q8에서 변화나 돌발 상황에 민감하고 감정 기복이 어느 정도 있다는 응답을 바탕으로, 안정·힐링 중심의 선물이 특히 도움이 될 가능성이 높습니다.",
-        "Q7, Q8 응답을 통해 일상적인 스트레스를 받기도 하지만, 적절히 대처하며 안정을 찾는 보통 수준의 정서 상태가 확인되었습니다.",
-        "Q7, Q8 응답에서 스트레스 상황에서도 침착함을 유지하며 감정 기복이 적은 안정적인 성향이 확인되었습니다.",
-        "정서적 안정이 필요한 성향"
-    ))
-
-    process_trait('q9', 'q10', "개방성", "개방성 (Openness)", (
-        "Q9, Q10에서 새로운 취미, 창의적인 아이템, 감각적인 디자인을 선호한다는 선택이 확인되어, 개성 있는 취향 기반 선물을 선호하는 성향으로 판단됩니다.",
-        "Q9, Q10 응답에서 익숙한 것과 새로운 것 사이에서 적절한 균형을 유지하며, 너무 튀지 않으면서도 세련된 스타일을 선호합니다.",
-        "Q9, Q10 응답에서 유행을 타지 않는 클래식하고 전통적인 스타일을 선호하며, 익숙한 것에서 편안함을 느끼는 성향입니다.",
-        "새로운 경험과 개방적인 성향"
-    ))
+    for config in trait_configs:
+        process_trait(
+            q_keys=config["q_keys"],
+            trait_key=config["trait_key"],
+            category_labels=config["category_labels"],
+            descriptions=config["descriptions"],
+            summaries=config["summaries"]
+        )
 
     # 키워드 중복 제거 (순서 유지)
     deduped_keywords = []

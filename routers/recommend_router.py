@@ -79,28 +79,16 @@ class KeywordResponseWrapper(BaseModel):
 # -----------------------------
 # APIs
 # -----------------------------
-@router.post("/survey/result", response_model=SurveyResponseWrapper)
+@router.post("/survey/result", response_model=SurveyResult)
 def recommend_by_survey(request: SurveyRequest):
-    try:
-        query_sentence, evidence_list, user_trait_keywords = rag.convert_survey_to_query(request.dict())
-        result_data = rag.get_survey_recommendation(query_sentence, evidence_list, user_trait_keywords)
+    query_sentence, evidence_list, user_trait_keywords = rag.convert_survey_to_query(request.dict())
+    result_data = rag.get_survey_recommendation(query_sentence, evidence_list, user_trait_keywords)
 
-        if not result_data:
-            return SurveyResponseWrapper(isSuccess=False, code="SERVER5001", message="결과 없음", result=None)
+    return SurveyResult(**result_data)
 
-        return SurveyResponseWrapper(isSuccess=True, code="COMMON200", message="성공", result=SurveyResult(**result_data))
-    except Exception as e:
-        return SurveyResponseWrapper(isSuccess=False, code="SERVER5000", message=str(e), result=None)
-
-
-@router.post("/keywords/result", response_model=KeywordResponseWrapper)
+@router.post("/keywords/result", response_model=KeywordResult)
 def recommend_by_keywords(request: KeywordRequest):
-    try:
-        result_data = rag.get_keyword_recommendation(request.dict())
+    result_data = rag.get_keyword_recommendation(request.dict())
 
-        if not result_data:
-            return KeywordResponseWrapper(isSuccess=False, code="SERVER5001", message="결과 없음", result=None)
+    return KeywordResult(**result_data)
 
-        return KeywordResponseWrapper(isSuccess=True, code="COMMON200", message="성공", result=KeywordResult(**result_data))
-    except Exception as e:
-        return KeywordResponseWrapper(isSuccess=False, code="SERVER5000", message=str(e), result=None)
